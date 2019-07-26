@@ -36,6 +36,7 @@ document.getElementById('tempCanvas').width = imageSize;
 var resultTable = "<table border=1 cellpadding=2 cellspacing=0>";
 for (var o = 0; o < organ.length; o++) {
 	resultTable += "<tr>";
+	// loads the test images, numbered 005x (0051 - 0055)
 	for (var i = 1; i <= 5; i++) {
 		resultTable += "<td align=center><img id=\"testImage" + ((o*5)+i) + "\" src=\"test/" + organ[o] + "-005" + i + ".png\" width=64><canvas id=\"testCanvas" + ((o*5)+i)	 + "\" height=" + imageSize + " width=" + imageSize + " style=\"display:none;\"></canvas><br>" + organ[o] + "</td>";
 	}
