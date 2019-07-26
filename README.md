@@ -23,3 +23,5 @@
 1. Epochs are called "repetitions". 
 2. My "Test Images" is essentially the validation set. And the live video feed is the actual test set.
 3. No evaluation of training and validation losses.
+
+<a href=https://youtu.be/OqRFxUbQMyg>Pitch video</a> (live.html can be seen)
