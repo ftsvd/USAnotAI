@@ -1,0 +1,255 @@
+<script>
+// Configuration
+var imageSize = 64;
+
+// Classifiers
+var organ = [];
+organ[0] = 'kidney';
+organ[1] = 'liver';
+organ[2] = 'gallbladder';
+organ[3] = 'spleen';
+organ[4] = 'bladder';
+organ[5] = 'bowel';
+
+// Training parameters
+var repetitions = 1; //default number of epochs every time doTrain is called
+var imagesPerOrgan = 50;
+
+</script>
+
+<html>
+<body>
+<b>Current Working Image & Canvas:</b><br>
+<img id="tempImage" src="train/liver-0001.png"><canvas id="tempCanvas"></canvas>
+
+<script>
+document.getElementById('tempCanvas').height = imageSize;
+document.getElementById('tempCanvas').width = imageSize;
+</script>
+
+<hr>
+<b>Results on Test Data:</b><br>
+<span id="spanResultTable"></span>
+
+<script>
+// Prepare result table
+var resultTable = "<table border=1 cellpadding=2 cellspacing=0>";
+for (var o = 0; o < organ.length; o++) {
+	resultTable += "<tr>";
+	for (var i = 1; i <= 5; i++) {
+		resultTable += "<td align=center><img id=\"testImage" + ((o*5)+i) + "\" src=\"test/" + organ[o] + "-005" + i + ".png\" width=64><canvas id=\"testCanvas" + ((o*5)+i)	 + "\" height=" + imageSize + " width=" + imageSize + " style=\"display:none;\"></canvas><br>" + organ[o] + "</td>";
+	}
+	resultTable += "</tr><tr>";
+	for (var i = 1; i <= 5; i++) {
+		resultTable += "<td align=right><span id=\"spanTest" + ((o*5)+i) + "\"></span></td>";
+	}
+	resultTable += "</tr>";
+}
+resultTable += "</table>";
+document.getElementById('spanResultTable').innerHTML = resultTable;
+</script>
+
+<hr>
+
+<!-- Display of training images to ensure that images are loaded before doTrain() is called from console.  -->
+<!-- FUTURE RECOMMENDATION: should use onLoad event instead -->
+<b>Training Images:</b><br>
+<span id="spanTemp"></span>
+
+</body>
+</html>
+
+<!-- Karpathy's ConvNetJS -->
+<script src="convnet-min.js"></script>
+
+<script>
+// Load training images first into spanTemp
+// FUTURE RECOMMENDATION: should use onLoad event instead
+for (var n = 1; n <= imagesPerOrgan; n++) {
+	for (var o = 0; o < organ.length; o++) {
+		//To create filename
+		var counter = String('000') + String(n);
+		counter = counter.substring(counter.length - 4, counter.length);
+		//Display training image
+		document.getElementById('spanTemp').innerHTML += '<img src=train/' + organ[o] + '-' + counter + '.png width=32>';
+	}
+}
+
+// Current working image & canvas
+var tempImage = document.getElementById('tempImage');
+var tempCanvas = document.getElementById('tempCanvas');
+var tempCTX = tempCanvas.getContext('2d');
+
+// Return dimensionless imagedata from filename
+// Load 1 training image from filename, read imagedata.data, and return pixelvalue of red channel from each pixel
+var progressCounter = 1;
+function loadImageIntoVolume(filename) {
+	tempImage.src = filename;
+	tempCTX.drawImage(tempImage, 0, 0);
+	var tempImageData = tempCTX.getImageData(0, 0, imageSize, imageSize);
+	var tempImageDataGray = [];
+	for (var i = 0; i < tempImageData.data.length / 4; i++) {
+		tempImageDataGray[i] = tempImageData.data[i * 4]; //assume grayscale, only use R channel
+	}
+	// Following console.log to ensure that tempImage.src is loaded and visually different from previous loaded image
+	// FUTURE RECOMMENDATION: need to fix with onLoad event
+	console.log(progressCounter + ":" + tempImageDataGray[(imageSize * imageSize / 2) - (imageSize / 2)], tempImageDataGray.length); //center pixel
+	progressCounter++;
+	return tempImageDataGray;
+}
+
+
+//START AI
+
+// Create CNN Layers
+var layer_defs = [];
+layer_defs.push({type:'input', out_sx:imageSize, out_sy:imageSize, out_depth:1}); //grayscale channel only
+layer_defs.push({type:'conv', sx:5, filters:16, stride:1, pad:2, activation:'relu'});
+layer_defs.push({type:'pool', sx:2, stride:2})
+layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});
+layer_defs.push({type:'pool', sx:2, stride:2})
+layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});
+layer_defs.push({type:'pool', sx:2, stride:2});
+// ConvNetJS automatically adds an fc layer here with 6 neurons (? part of the softmax layer below)
+layer_defs.push({type:'softmax', num_classes:organ.length});
+
+// REFERENCE: Syntax for fc layer
+//layer_defs.push({type:'fc', num_neurons:16, activation:'relu'});
+
+net = new convnetjs.Net();
+net.makeLayers(layer_defs);
+
+// Temporary array to hold training images, again because onLoad is not firing
+var createdImage = [];
+
+// Function to begin training
+// Receives number of epochs as argument
+function doTrain(repetitionsForced) {
+
+	// Number of epochs
+	var repetitionsToDo = repetitionsForced || repetitions;
+	
+	console.log('totalOrgans:' + organ.length + '\nimagesPerOrgan:' + imagesPerOrgan + '\nrepetitions:' + repetitionsToDo + '\nTOTAL:' + (organ.length * imagesPerOrgan * repetitionsToDo));
+
+	//TIMER: START
+	var then = new Date();
+
+	//Training loop
+	for (var r = 0; r < repetitionsToDo; r++) {
+		document.getElementById('spanTemp').innerHTML += '<br>Cycle ' + r + ':<br>';
+		for (var n = 1; n <= imagesPerOrgan; n++) {
+			for (var o = 0; o < organ.length; o++) {
+				//To create filename
+				var counter = String('000') + String(n);
+				counter = counter.substring(counter.length - 4, counter.length);
+
+				//Temporary array to hold images, because onLoad is not firing
+				createdImage[((1 + o) * 1000) + n] = new Image();
+				createdImage[((1 + o) * 1000) + n].src = 'train/' + organ[o] + '-' + counter + '.png';
+
+				//Display training image
+				document.getElementById('spanTemp').innerHTML += '<img src=train/' + organ[o] + '-' + counter + '.png width=32>';
+				
+				//Create new training volume at imageSizeximageSizex1, pre-filled with 0.0
+				var trainVol = new convnetjs.Vol(imageSize, imageSize, 1, 0.0);
+				
+				//Get dimensionless imagedata
+				var trainVolData = loadImageIntoVolume('train/' + organ[o] + '-' + counter + '.png');
+				
+				//Fill training volume with dimensionless imagedata
+				var p = 0;
+				for (var yc = 0; yc < imageSize; yc++) {
+					for (var xc = 0; xc < imageSize; xc++) {
+						trainVol.set(xc, yc, 0, trainVolData[p]);
+						p++;
+					}
+				}
+
+				//Initiate training
+				var trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:1, l2_decay:0.001});
+				trainer.train(trainVol, o); //train using matched trainVol and classifier
+			}
+		}
+	}
+
+	//TIMER END:
+	var now = new Date();
+	console.log('Train time taken: ' + (now - then) + 'ms');
+	
+	// Automatically run test images through model
+	doTest();
+}
+
+// Following arrays allow individual access to each test image
+var prediction = []; //not necessary to be array, but want to ensure each prediction can be read by console later
+var tvol = []; //not necessary to be array, but want to ensure each dimensioned testing volume can be read by console later
+
+// Function to run test images through model
+function doTest() {
+
+	//TIMER: START
+	var then = new Date();
+	
+	//Output Predictions
+	//Create dimensionless imagedata of test volumes
+	var testVol = [];
+	for (var t = 1; t <= (5 * organ.length); t++) {
+		testVol[t] = [];
+		var tempTestImage = document.getElementById('testImage'+ t);
+		var tempTestCTX = document.getElementById('testCanvas' + t).getContext('2d');
+		tempTestCTX.drawImage(tempTestImage, 0, 0);
+		var tempTestImageData = tempTestCTX.getImageData(0, 0, imageSize, imageSize);
+		for (var i = 0; i < tempTestImageData.data.length / 4; i++) {
+			testVol[t][i] = tempTestImageData.data[i * 4]; //assume grayscale, only use R channel
+		}
+	}
+
+	//Testing loop
+	for (var t = 1; t <= (5 * organ.length); t++) {
+		//initiate testing volume at imageSizeximageSizex1 prefilled with 0.0
+		tvol[t] = new convnetjs.Vol(imageSize, imageSize, 1, 0.0);
+
+		//fill testing volume with dimensionless imagedata of test volumes
+		var p = 0;
+		for (var yc = 0; yc < imageSize; yc++) {
+			for (var xc = 0; xc < imageSize; xc++) {
+				tvol[t].set(xc, yc, 0, testVol[t][p]);
+				p++;
+			}
+		}
+		
+		prediction[t] = net.forward(tvol[t]);
+
+		//pick the label with the highest score
+		var highestWeight = 0;
+		var highestWeightedOrgan = null;
+		for (var o = 0; o < organ.length; o++) {
+			if (prediction[t].w[o] > highestWeight) {
+				highestWeight = prediction[t].w[o];
+				highestWeightedOrgan = o;
+			}
+		}
+		//display the label with the highest score
+		var predictionHTML = " ";
+		for (var o = 0; o < organ.length; o++) {
+			if (o == highestWeightedOrgan) { predictionHTML += "<b>"; }
+			predictionHTML += organ[o] + ": " + prediction[t].w[o].toFixed(2);
+			if (o == highestWeightedOrgan) { predictionHTML += "</b>"; }
+			predictionHTML += "<br>";
+		}
+		document.getElementById('spanTest' +t).innerHTML += predictionHTML;
+	}
+
+	//TIMER END:
+	var now = new Date();
+	console.log('Test time taken: ' + (now - then) + 'ms');
+}
+
+// console.logs the model as a string, either to be copy-pasted or saved
+function doNet() {
+	var json = net.toJSON();
+	var str = JSON.stringify(json);
+	console.log(str);
+}
+</script>
+
