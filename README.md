@@ -3,6 +3,8 @@
 
 <a href=https://siim.org/page/siim2019>SIIM 2019</a> Innovation Challenge Winner
 
+Uses <a href=https://github.com/karpathy/convnetjs>ConvNetJS</a>.
+
 <b>Training File:</b> usanotai.html<br>
 1. Training images are in \train folder (named as {organ}-00##.png)
 2. Test images are in \test folder (named as {organ}-005#.png)
@@ -23,5 +25,6 @@
 1. Epochs are called "repetitions". 
 2. My "Test Images" is essentially the validation set. And the live video feed is the actual test set.
 3. No evaluation of training and validation losses.
+4. Model was defined with ONLY Conv/Pool layers WITHOUT a Fully-Connected layer before the Softmax layer. It just happens to work because ConvNetJS (apparently) automatically adds an FC layer just before the Softmax layer, even though I didn't define it.
 
 <a href=https://youtu.be/OqRFxUbQMyg>Pitch video</a> (live.html can be seen)
